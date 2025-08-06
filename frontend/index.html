@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>To-Do App with Auth</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      padding: 2rem;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+    }
+
+    .completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    body.light-mode {
+      background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+      color: #212529;
+    }
+
+    body.dark-mode {
+      background: linear-gradient(120deg, #232526 0%, #414345 100%);
+      color: #f1f1f1;
+    }
+
+    .dark-mode .card,
+    .dark-mode .form-control,
+    .dark-mode .form-select,
+    .dark-mode .list-group-item {
+      background-color: #2b2b2b;
+      color: #f1f1f1;
+      border-color: #444;
+    }
+
+    .dark-mode .btn-outline-dark {
+      border-color: #f1f1f1;
+      color: #f1f1f1;
+    }
+  </style>
+</head>
+<body class="light-mode">
+  <div class="container">
+    <h2 class="mb-4 text-center">📝 To-Do App</h2>
+
+    <!-- 🌗 Theme Toggle -->
+    <div class="text-end mb-3">
+      <button id="theme-toggle" class="btn btn-outline-dark">🌙 Dark Mode</button>
+    </div>
+
+    <!-- 🔐 Auth Section -->
+    <div id="auth-section" class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Login or Register</h5>
+        <div id="auth-alert" class="alert d-none" role="alert"></div>
+        <form id="auth-form">
+          <div class="mb-3">
+            <input type="text" class="form-control" id="auth-username" placeholder="Username" required />
+          </div>
+          <div class="mb-3">
+            <input type="password" class="form-control" id="auth-password" placeholder="Password" required />
+          </div>
+          <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary" id="login-btn">Login</button>
+            <button type="button" class="btn btn-secondary" id="register-btn">Register</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ✅ Task Section -->
+    <div id="task-section" class="hidden">
+      <div class="mb-3 text-end"><strong>Total Tasks:</strong> <span id="task-counter">0</span></div>
+      <form id="task-form" class="mb-4">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <input type="text" id="task-title" class="form-control" placeholder="Enter task title" required />
+          </div>
+          <div class="col-md-2">
+            <input type="date" id="task-due" class="form-control" required />
+          </div>
+          <div class="col-md-2">
+            <select id="task-priority" class="form-select">
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <input type="text" id="task-category" class="form-control" placeholder="Category" />
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-success w-100" type="submit">Add Task</button>
+          </div>
+        </div>
+      </form>
+
+      <ul id="task-list" class="list-group"></ul>
+    </div>
+  </div>
+
+  <script>
+    const api = 'http://localhost:8080/tasks';
+    const authApi = 'http://localhost:8080/auth';
+    const taskList = document.getElementById('task-list');
+    const taskForm = document.getElementById('task-form');
+    const taskInput = document.getElementById('task-title');
+    const taskDue = document.getElementById('task-due');
+    const taskPriority = document.getElementById('task-priority');
+    const taskCategory = document.getElementById('task-category');
+    const taskCounter = document.getElementById('task-counter');
+
+    const authForm = document.getElementById('auth-form');
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+    const authUsername = document.getElementById('auth-username');
+    const authPassword = document.getElementById('auth-password');
+    const authAlert = document.getElementById('auth-alert');
+
+    const authSection = document.getElementById('auth-section');
+    const taskSection = document.getElementById('task-section');
+
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const savedTheme = localStorage.getItem('theme');
+
+    if (savedTheme === 'dark') {
+      document.body.classList.replace('light-mode', 'dark-mode');
+      themeToggleBtn.textContent = '☀️ Light Mode';
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.body.classList.toggle('dark-mode', !isDark);
+      document.body.classList.toggle('light-mode', isDark);
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      themeToggleBtn.textContent = isDark ? '🌙 Dark Mode' : '☀️ Light Mode';
+    });
+
+    function updateCounter(count) {
+      taskCounter.textContent = count;
+    }
+
+    function fetchTasks() {
+      fetch(api)
+        .then(res => res.json())
+        .then(tasks => {
+          taskList.innerHTML = '';
+          updateCounter(tasks.length);
+
+          tasks.forEach(task => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center ' + (task.completed ? 'completed' : '');
+            const badgeColor = task.priority === 'High' ? 'danger' : task.priority === 'Medium' ? 'warning' : 'secondary';
+            const catColor = task.category ? `style="background-color: ${stringToColor(task.category)}"` : '';
+
+            li.innerHTML = `
+              <div>
+                <span onclick="toggleComplete(${task.id}, ${task.completed})">${task.title}</span>
+                <span class="badge bg-${badgeColor} ms-2">${task.priority}</span>
+                <span class="badge bg-info text-dark ms-2">${task.dueDate}</span>
+                <span class="badge ms-2" ${catColor}>${task.category || ''}</span>
+              </div>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id})">Delete</button>
+            `;
+            taskList.appendChild(li);
+          });
+        })
+        .catch(err => console.error('❌ Error fetching tasks:', err));
+    }
+
+    function addTask(title, priority, dueDate, category) {
+      fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, priority, dueDate, category })
+      })
+        .then(res => res.json())
+        .then(() => {
+          taskInput.value = '';
+          taskDue.value = '';
+          taskCategory.value = '';
+          fetchTasks();
+        })
+        .catch(err => alert('❌ Failed to add task'));
+    }
+
+    function deleteTask(id) {
+      fetch(`${api}/${id}`, { method: 'DELETE' }).then(fetchTasks);
+    }
+
+    function toggleComplete(id, currentStatus) {
+      fetch(`${api}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !currentStatus })
+      }).then(fetchTasks);
+    }
+
+    function showAuthMessage(message, success = false) {
+      authAlert.className = 'alert alert-' + (success ? 'success' : 'danger');
+      authAlert.textContent = message;
+      authAlert.classList.remove('d-none');
+    }
+
+    authForm.addEventListener('submit', e => e.preventDefault());
+
+    loginBtn.addEventListener('click', () => {
+      const user = {
+        username: authUsername.value,
+        password: authPassword.value
+      };
+      fetch(authApi + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      })
+        .then(res => res.text())
+        .then(msg => {
+          if (msg.includes('success')) {
+            showAuthMessage('Login successful!', true);
+            authSection.classList.add('hidden');
+            taskSection.classList.remove('hidden');
+            fetchTasks();
+          } else {
+            showAuthMessage('Invalid credentials');
+          }
+        });
+    });
+
+    registerBtn.addEventListener('click', () => {
+      const user = {
+        username: authUsername.value,
+        password: authPassword.value
+      };
+      fetch(authApi + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      })
+        .then(res => res.text())
+        .then(msg => {
+          if (msg.includes('success')) {
+            showAuthMessage('User registered successfully! Now log in.', true);
+          } else {
+            showAuthMessage('Registration failed.');
+          }
+        });
+    });
+
+    taskForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const title = taskInput.value.trim();
+      const priority = taskPriority.value;
+      const due = taskDue.value;
+      const category = taskCategory.value.trim();
+      if (title && due) {
+        addTask(title, priority, due, category);
+      }
+    });
+
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
+  </script>
+</body>
+</html>

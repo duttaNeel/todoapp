@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>To-Do App with Auth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     body {
@@ -33,17 +34,27 @@
       color: #f1f1f1;
       border-color: #444;
     }
+    .dark-mode .form-control::placeholder {
+      color: #f1f1f1;
+    }
     .dark-mode .btn-outline-dark {
       border-color: #f1f1f1;
       color: #f1f1f1;
+    }
+    @media (max-width: 768px) {
+      #task-form .row {
+        flex-direction: column;
+      }
+      #task-form .col-md-2,
+      #task-form .col-md-4 {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body class="light-mode">
   <div class="container">
     <h2 class="mb-4 text-center">📝 To-Do App</h2>
-
-    <!-- 🌗 Theme Toggle -->
     <div class="text-end mb-3">
       <button id="theme-toggle" class="btn btn-outline-dark">🌙 Dark Mode</button>
     </div>
@@ -97,7 +108,6 @@
           </div>
         </div>
       </form>
-
       <ul id="task-list" class="list-group"></ul>
     </div>
   </div>
@@ -146,20 +156,16 @@
       authUsername.value = '';
       authPassword.value = '';
       taskList.innerHTML = '';
-      updateCounter(0);
+      taskCounter.textContent = '0';
       showAuthMessage('You have been logged out.', true);
     });
-
-    function updateCounter(count) {
-      taskCounter.textContent = count;
-    }
 
     function fetchTasks() {
       fetch(api)
         .then(res => res.json())
         .then(tasks => {
           taskList.innerHTML = '';
-          updateCounter(tasks.length);
+          taskCounter.textContent = tasks.length;
           tasks.forEach(task => {
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center ' + (task.completed ? 'completed' : '');
@@ -169,15 +175,14 @@
               <div>
                 <span onclick="toggleComplete(${task.id}, ${task.completed})">${task.title}</span>
                 <span class="badge bg-${badgeColor} ms-2">${task.priority}</span>
-                <span class="badge bg-info text-dark ms-2">${task.dueDate}</span>
+                <span class="badge bg-info text-dark ms-2">Due: ${task.dueDate}</span>
                 <span class="badge ms-2" ${catColor}>${task.category || ''}</span>
               </div>
               <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id})">Delete</button>
             `;
             taskList.appendChild(li);
           });
-        })
-        .catch(err => console.error('❌ Error fetching tasks:', err));
+        });
     }
 
     function addTask(title, priority, dueDate, category) {

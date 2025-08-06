@@ -47,11 +47,7 @@ todo-app/
 │ └── ...
 ├── frontend/
 │ └── index.html
-├── pom.xml
-
-yaml
-Copy
-Edit
+├── pom.xml 
 
 ---
 
@@ -75,14 +71,10 @@ spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 spring.h2.console.enabled=false
 🚀 Run the Backend
 bash
-Copy
-Edit
 mvn clean install
 mvn spring-boot:run
 🌐 Run the Frontend
 bash
-Copy
-Edit
 cd frontend
 python -m http.server 5500
 Open: http://localhost:5500
@@ -107,10 +99,6 @@ Add screenshots here if you’d like
 
 📄 License
 This project is open-source under the MIT License.
-
-yaml
-Copy
-Edit
 
 ---
 

@@ -11,10 +11,6 @@
       transition: background-color 0.3s ease, color 0.3s ease;
       background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
     }
-    .completed {
-      text-decoration: line-through;
-      color: gray;
-    }
     .hidden {
       display: none;
     }
@@ -65,7 +61,6 @@
       <button id="theme-toggle" class="btn btn-outline-dark">🌙 Dark Mode</button>
     </div>
 
-    <!-- 🔐 Auth Section -->
     <div id="auth-section" class="card mb-4">
       <div class="card-body">
         <h5 class="card-title">Login or Register</h5>
@@ -85,7 +80,6 @@
       </div>
     </div>
 
-    <!-- ✅ Task Section -->
     <div id="task-section" class="hidden">
       <div class="mb-3 d-flex justify-content-between align-items-center">
         <div><strong>Total Tasks:</strong> <span id="task-counter">0</span></div>
@@ -97,7 +91,7 @@
             <input type="text" id="task-title" class="form-control" placeholder="Enter task title" required />
           </div>
           <div class="col-md-2">
-            <input type="date" id="task-due" class="form-control" required />
+            <input type="date" id="task-due" class="form-control" placeholder="Due Date" required />
           </div>
           <div class="col-md-2">
             <select id="task-priority" class="form-select">
@@ -174,12 +168,12 @@
           taskCounter.textContent = tasks.length;
           tasks.forEach(task => {
             const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center ' + (task.completed ? 'completed' : '');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
             const badgeColor = task.priority === 'High' ? 'danger' : task.priority === 'Medium' ? 'warning' : 'secondary';
             const catColor = task.category ? `style="background-color: ${stringToColor(task.category)}"` : '';
             li.innerHTML = `
               <div>
-                <span onclick="toggleComplete(${task.id}, ${task.completed})">${task.title}</span>
+                <span>${task.title}</span>
                 <span class="badge bg-${badgeColor} ms-2">${task.priority}</span>
                 <span class="badge bg-info text-dark ms-2">Due: ${task.dueDate}</span>
                 <span class="badge ms-2" ${catColor}>${task.category || ''}</span>
@@ -204,19 +198,11 @@
           taskCategory.value = '';
           fetchTasks();
         })
-        .catch(err => alert('❌ Failed to add task'));
+        .catch(() => alert('❌ Failed to add task'));
     }
 
     function deleteTask(id) {
       fetch(`${api}/${id}`, { method: 'DELETE' }).then(fetchTasks);
-    }
-
-    function toggleComplete(id, currentStatus) {
-      fetch(`${api}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: !currentStatus })
-      }).then(fetchTasks);
     }
 
     function showAuthMessage(message, success = false) {
@@ -228,10 +214,7 @@
     authForm.addEventListener('submit', e => e.preventDefault());
 
     loginBtn.addEventListener('click', () => {
-      const user = {
-        username: authUsername.value,
-        password: authPassword.value
-      };
+      const user = { username: authUsername.value, password: authPassword.value };
       fetch(authApi + '/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,10 +234,7 @@
     });
 
     registerBtn.addEventListener('click', () => {
-      const user = {
-        username: authUsername.value,
-        password: authPassword.value
-      };
+      const user = { username: authUsername.value, password: authPassword.value };
       fetch(authApi + '/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

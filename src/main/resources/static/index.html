@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>To-Do App with Auth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      padding: 2rem;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+    }
+  .completed {
+      color: gray;
+    }
+    .hidden {
+      display: none;
+    }
+    body.light-mode {
+      background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+      color: #212529;
+    }
+    body.dark-mode {
+      background: linear-gradient(120deg, #232526 0%, #414345 100%);
+      color: #f1f1f1;
+    }
+    .dark-mode .card,
+    .dark-mode .form-control,
+    .dark-mode .form-select,
+    .dark-mode .list-group-item {
+      background-color: #2b2b2b;
+      color: #f1f1f1;
+      border-color: #444;
+    }
+    .dark-mode .form-control::placeholder {
+      color: #f1f1f1;
+    }
+    .dark-mode .btn-outline-dark {
+      border-color: #f1f1f1;
+      color: #f1f1f1;
+    }
+
+    .dark-mode input[type="date"] {         /* FIXED */
+      background-color: #2b2b2b;            /* FIXED */
+      color: #f1f1f1;                       /* FIXED */
+      border-color: #444;                   /* FIXED */
+    }
+
+    @media (max-width: 768px) {
+      #task-form .row {
+        flex-direction: column;
+      }
+      #task-form .col-md-2,
+      #task-form .col-md-4 {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="light-mode">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1 w-100 text-center">ToDo App</span>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="text-end mb-3">
+      <button id="theme-toggle" class="btn btn-outline-dark">🌙 Dark Mode</button>
+    </div>
+
+    <!-- 🔐 Auth Section -->
+    <div id="auth-section" class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Login or Register</h5>
+        <div id="auth-alert" class="alert d-none" role="alert"></div>
+        <form id="auth-form">
+          <div class="mb-3">
+            <input type="text" class="form-control" id="auth-username" placeholder="Username" required />
+          </div>
+          <div class="mb-3">
+            <input type="password" class="form-control" id="auth-password" placeholder="Password" required />
+          </div>
+          <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary" id="login-btn">Login</button>
+            <button type="button" class="btn btn-secondary" id="register-btn">Register</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ✅ Task Section -->
+    <div id="task-section" class="hidden">
+      <div class="mb-3 d-flex justify-content-between align-items-center">
+        <div><strong>Total Tasks:</strong> <span id="task-counter">0</span></div>
+        <button id="logout-btn" class="btn btn-danger btn-sm">🚪 Logout</button>
+      </div>
+      <form id="task-form" class="mb-4">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <input type="text" id="task-title" class="form-control" placeholder="Enter task title" required />
+          </div>
+          <div class="col-md-2">
+            <label for="task-due" class="form-label">Due Date:</label>  <!-- FIXED -->
+            <input type="date" id="task-due" class="form-control" required />
+          </div>
+          <div class="col-md-2">
+            <label for="task-priority"
+              class="form-label">Priority:</label>
+            <select id="task-priority" class="form-select">
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <input type="text" id="task-category" class="form-control" placeholder="Category" />
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-success w-100" type="submit">Add Task</button>
+          </div>
+        </div>
+      </form>
+      <ul id="task-list" class="list-group"></ul>
+      <h5 class="mt-4">✔️ Completed Tasks</h5>
+      <ul id="completed-list" class="list-group"></ul>
+    </div>
+  </div>
+
+  <script>
+    const api = '/tasks';
+    const authApi = '/auth';
+    const taskList = document.getElementById('task-list');
+    const completedList = document.getElementById('completed-list');
+    const taskForm = document.getElementById('task-form');
+    const taskInput = document.getElementById('task-title');
+    const taskDue = document.getElementById('task-due');
+    const taskPriority = document.getElementById('task-priority');
+    const taskCategory = document.getElementById('task-category');
+    const taskCounter = document.getElementById('task-counter');
+
+    const authForm = document.getElementById('auth-form');
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+    const authUsername = document.getElementById('auth-username');
+    const authPassword = document.getElementById('auth-password');
+    const authAlert = document.getElementById('auth-alert');
+
+    const authSection = document.getElementById('auth-section');
+    const taskSection = document.getElementById('task-section');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const savedTheme = localStorage.getItem('theme');
+
+    if (savedTheme === 'dark') {
+      document.body.classList.replace('light-mode', 'dark-mode');
+      themeToggleBtn.textContent = '☀️ Light Mode';
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.body.classList.toggle('dark-mode', !isDark);
+      document.body.classList.toggle('light-mode', isDark);
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      themeToggleBtn.textContent = isDark ? '🌙 Dark Mode' : '☀️ Light Mode';
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      authSection.classList.remove('hidden');
+      taskSection.classList.add('hidden');
+      authUsername.value = '';
+      authPassword.value = '';
+      localStorage.removeItem('username');
+      taskList.innerHTML = '';
+      completedList.innerHTML = '';
+      taskCounter.textContent = '0';
+      showAuthMessage('You have been logged out.', true);
+    });
+
+    function fetchTasks() {
+      const username = localStorage.getItem('username');
+      if (!username) return;
+      // Fetch incomplete
+      fetch(`${api}/incomplete?username=${encodeURIComponent(username)}`)
+        .then(res => res.json())
+        .then(tasks => {
+          taskList.innerHTML = '';
+          taskCounter.textContent = tasks.length;
+          tasks.forEach(task => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            const badgeColor = task.priority === 'High' ? 'danger' : task.priority === 'Medium' ? 'warning' : 'secondary';
+            const catColor = task.category ? `style="background-color: ${stringToColor(task.category)}"` : '';
+            li.innerHTML = `
+              <div>
+                <span role="button" onclick="markCompleted(${task.id}, true)">${task.title}</span>
+                <span class="badge bg-${badgeColor} ms-2">${task.priority}</span>
+                <span class="badge bg-info text-dark ms-2">Due: ${task.dueDate}</span>
+                <span class="badge ms-2" ${catColor}>${task.category || ''}</span>
+              </div>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id})">Delete</button>
+            `;
+            taskList.appendChild(li);
+          });
+        });
+      // Fetch completed
+      fetch(`${api}/completed?username=${encodeURIComponent(username)}`)
+        .then(res => res.json())
+        .then(tasks => {
+          completedList.innerHTML = '';
+          tasks.forEach(task => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center completed';
+            li.innerHTML = `
+              <div>
+                <span role="button" onclick="markCompleted(${task.id}, false)">${task.title}</span>
+                <span class="badge bg-success ms-2">Completed</span>
+              </div>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id})">Delete</button>
+            `;
+            completedList.appendChild(li);
+          });
+        });
+    }
+
+    function markCompleted(id, value) {
+      const username = localStorage.getItem('username');
+      // Fetch the full task first
+      fetch(`${api}?username=${encodeURIComponent(username)}`)
+        .then(res => res.json())
+        .then(tasks => {
+          const task = tasks.find(t => t.id === id);
+          if (!task) return;
+          // update only completed
+          task.completed = value;
+          fetch(`${api}/${id}?username=${encodeURIComponent(username)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(task)
+          }).then(fetchTasks);
+        });
+    }
+
+    function addTask(title, priority, dueDate, category) {
+      const username = localStorage.getItem('username');
+      fetch(`${api}?username=${encodeURIComponent(username)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, priority, dueDate, category })
+      })
+        .then(res => res.json())
+        .then(() => {
+          taskInput.value = '';
+          taskDue.value = '';
+          taskCategory.value = '';
+          fetchTasks();
+        })
+        .catch(err => alert('❌ Failed to add task'));
+    }
+
+    function deleteTask(id) {
+      fetch(`${api}/${id}`, { method: 'DELETE' }).then(fetchTasks);
+    }
+
+    function showAuthMessage(message, success = false) {
+      authAlert.className = 'alert alert-' + (success ? 'success' : 'danger');
+      authAlert.textContent = message;
+      authAlert.classList.remove('d-none');
+    }
+
+    authForm.addEventListener('submit', e => e.preventDefault());
+
+    loginBtn.addEventListener('click', () => {
+      const user = {
+        username: authUsername.value,
+        password: authPassword.value
+      };
+      fetch(authApi + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      })
+        .then(res => res.text())
+        .then(msg => {
+          if (msg.includes('success')) {
+            localStorage.setItem('username', user.username);
+            showAuthMessage('Login successful!', true);
+            authSection.classList.add('hidden');
+            taskSection.classList.remove('hidden');
+            fetchTasks();
+          } else {
+            showAuthMessage('Invalid credentials');
+          }
+        });
+    });
+
+    registerBtn.addEventListener('click', () => {
+      const user = {
+        username: authUsername.value,
+        password: authPassword.value
+      };
+      fetch(authApi + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      })
+        .then(res => res.text())
+        .then(msg => {
+          if (msg.includes('success')) {
+            showAuthMessage('User registered successfully! Now log in.', true);
+          } else {
+            showAuthMessage('Registration failed.');
+          }
+        });
+    });
+
+    taskForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const title = taskInput.value.trim();
+      const priority = taskPriority.value;
+      const due = taskDue.value;
+      const category = taskCategory.value.trim();
+      if (title && due) {
+        addTask(title, priority, due, category);
+      }
+    });
+
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
+  </script>
+</body>
+</html>

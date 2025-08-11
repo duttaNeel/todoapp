@@ -259,8 +259,9 @@
         .catch(err => alert('❌ Failed to add task'));
     }
 
-    function deleteTask(id) {
-      fetch(`${api}/${id}`, { method: 'DELETE' }).then(fetchTasks);
+   function deleteTask(id) {
+      const username = localStorage.getItem('username');
+      fetch(`${api}/${id}?username=${encodeURIComponent(username)}`, { method: 'DELETE' }).then(fetchTasks);
     }
 
     function showAuthMessage(message, success = false) {
